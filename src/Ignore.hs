@@ -1,52 +1,47 @@
-{-# LANGUAGE ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module Ignore (
     ignore,
     ignored,
-    readIgnores,
-    Ignore
+    readIgnores
 ) where
 
 import Control.Applicative ((<$>))
-import System.FilePath ((</>))
 import Control.Exception (catch, IOException)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as B
+import System.Posix.FilePath ((</>), RawFilePath)
 import Text.Regex.TDFA ((=~))
+import Types (File, Ignore(..))
 
-newtype Ignore = Ignore String deriving (Show, Eq)
+ignore :: RawFilePath -> Ignore
+ignore bs =
+    if '*' `B.elem` bs  || '?' `B.elem` bs
+       then Regex (('^' `B.cons` B.concatMap go bs) `B.snoc` '$')
+       else Literal bs
+    where
+        go :: Char -> ByteString
+        go '*' = ".*"
+        go '?' = "."
+        go x = escape x
 
-ignore :: String -> Ignore
-ignore = Ignore . globToRegex
+        escape :: Char -> ByteString
+        escape c | c  `B.elem` regexChars = B.pack ['\\', c]
+                | otherwise = B.singleton c
+            where
+                regexChars = "\\+()^$.{}]|"
+{-# INLINABLE ignore #-}
 
-ignored :: [Ignore] -> String -> Bool
+ignored :: [Ignore] -> File -> Bool
 ignored [] _ = True
-ignored (Ignore r:rs) s = not (s =~ r) && ignored rs s
+ignored (Regex r:rs) p@(_, f) = not (f =~ r) && ignored rs p
+ignored (Literal l:rs) p@(_, f) = (f /= l) && ignored rs p
+{-# INLINABLE ignored #-}
 
-readIgnores :: [FilePath] -> FilePath -> IO [Ignore]
+readIgnores :: [RawFilePath] -> RawFilePath -> IO [Ignore]
 readIgnores is path = concat <$> mapM (readIgnore . (path </>)) is
     where
-        readIgnore :: FilePath -> IO [Ignore]
-        readIgnore f = catch (map ignore . lines <$> readFile f)
+        readIgnore :: RawFilePath -> IO [Ignore]
+        readIgnore f = catch (map ignore . B.lines <$> B.readFile (B.unpack f))
                              (\(_ :: IOException) -> return [])
-
-globToRegex :: String -> String
-globToRegex cs = '^' : globToRegex' cs ++ "$"
-
-globToRegex' :: String -> String
-globToRegex' "" = ""
-globToRegex' ('*':cs) = ".*" ++ globToRegex' cs
-globToRegex' ('?':cs) = '.' : globToRegex' cs
-globToRegex' ('[':'!':c:cs) = "[^" ++ c : charClass cs
-globToRegex' ('[':c:cs)     = '['  :  c : charClass cs
-globToRegex' ('[':_)        = error "unterminated character class"
-globToRegex' (c:cs) = escape c ++ globToRegex' cs
-
-escape :: Char -> String
-escape c | c `elem` regexChars = '\\' : [c]
-         | otherwise = [c]
-    where
-        regexChars = "\\+()^$.{}]|"
-
-charClass :: String -> String
-charClass (']':cs) = ']' : globToRegex' cs
-charClass (c:cs)   = c : charClass cs
-charClass []       = error "unterminated character class"
+{-# INLINABLE readIgnores #-}

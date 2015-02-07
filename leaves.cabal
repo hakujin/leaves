@@ -11,12 +11,17 @@ cabal-version:       >=1.10
 
 executable leaves
   main-is:             Main.hs
-  build-depends:       base >=4.7 && <4.8,
-                       directory,
-                       filepath,
-                       regex-tdfa
   hs-source-dirs:      src
+  -- ghc-options:         -O2 -Wall
+  ghc-options:         -O2 -Wall -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
+  build-depends:       base >=4.7 && <4.8,
+                       bytestring,
+                       async,
+                       posix-paths,
+                       regex-tdfa,
+                       vector,
+                       vector-algorithms
 
 source-repository head
   type:     git

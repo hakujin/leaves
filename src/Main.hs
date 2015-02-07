@@ -1,22 +1,41 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 import Control.Applicative ((<$>))
-import Control.Exception (handle, IOException)
-import Data.List (sort)
-import System.Directory (getDirectoryContents)
-import Ignore (ignore, ignored, readIgnores, Ignore)
-
-data Tree a = File a
-            | Folder a [Tree a]
-            deriving Show
+import Control.Arrow (second)
+import Control.Concurrent.Async (mapConcurrently)
+import Control.Monad.ST (runST)
+import Data.Ord (comparing)
+import Data.Vector (Vector)
+import qualified Data.Vector as V
+import Data.Vector.Algorithms.Intro (sortBy)
+import System.Posix.Directory.Foreign (DirType(..))
+import System.Posix.Directory.Traversals (getDirectoryContents)
+import System.Posix.FilePath ((</>), takeFileName, RawFilePath)
+import Ignore (ignore, ignored, readIgnores)
+import Types (File, Ignore, Tree(..))
 
 main :: IO ()
-main = print =<< tree is "."
+main = print =<< tree i r
   where
-      is = map ignore [".", "..", ".git", ".gitignore", ".hg", ".hgignore"]
+      i = map ignore [".", "..", ".git", ".gitignore", ".hg", ".hgignore"]
+      r = (DirType 4, ".")
 
-tree :: [Ignore] -> FilePath -> IO (Tree FilePath)
-tree is f = handle (\(_ :: IOException) -> return $ File f) $ do
-    cs <- getDirectoryContents f
-    is' <- (++) is <$> readIgnores [".gitignore", ".hgignore"] f
-    Folder f <$> (mapM (tree is') . sort . filter (ignored is')) cs
+tree :: [Ignore] -> File -> IO (Tree RawFilePath)
+tree i (DirType 4, f) = do
+    c <- V.fromList <$> getDirectoryContents f
+    i' <- (++) i <$> readIgnores [".gitignore", ".hgignore"] f
+    Folder (takeFileName f) <$>
+        (mapConcurrently (tree i') . path f . sort . V.filter (ignored i')) c
+tree _ (DirType _, f) = return (File $ takeFileName f)
+{-# INLINABLE tree #-}
+
+path :: RawFilePath -> Vector File -> Vector File
+path f = V.map (second (f </>))
+{-# INLINABLE path #-}
+
+sort :: Vector File -> Vector File
+sort v = runST $ do
+    v' <- V.unsafeThaw v
+    sortBy (comparing snd) v'
+    V.unsafeFreeze v'
+{-# INLINABLE sort #-}
