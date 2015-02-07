@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists, ScopedTypeVariables #-}
 
 module Ignore (
     ignore,
@@ -7,9 +7,12 @@ module Ignore (
 ) where
 
 import Control.Applicative ((<$>))
-import Control.Exception (catch, IOException)
+import Control.Exception (handle, IOException)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
+import Data.Foldable (asum)
+import Data.Vector (Vector)
+import qualified Data.Vector as V
 import System.Posix.FilePath ((</>), RawFilePath)
 import Text.Regex.TDFA ((=~))
 import Types (File, Ignore(..))
@@ -32,16 +35,21 @@ ignore bs =
                 regexChars = "\\+()^$.{}]|"
 {-# INLINABLE ignore #-}
 
-ignored :: [Ignore] -> File -> Bool
-ignored [] _ = True
-ignored (Regex r:rs) p@(_, f) = not (f =~ r) && ignored rs p
-ignored (Literal l:rs) p@(_, f) = (f /= l) && ignored rs p
+ignored :: Vector Ignore -> File -> Bool
+ignored v (_, f) = V.all go v
+    where
+        go :: Ignore -> Bool
+        go (Regex r) = not (f =~ r)
+        go (Literal l) = f /= l
 {-# INLINABLE ignored #-}
 
-readIgnores :: [RawFilePath] -> RawFilePath -> IO [Ignore]
-readIgnores is path = concat <$> mapM (readIgnore . (path </>)) is
+readIgnores :: RawFilePath -> IO (Vector Ignore)
+readIgnores path = asum <$> V.mapM (readIgnore . (path </>)) dotfiles
     where
-        readIgnore :: RawFilePath -> IO [Ignore]
-        readIgnore f = catch (map ignore . B.lines <$> B.readFile (B.unpack f))
-                             (\(_ :: IOException) -> return [])
+        readIgnore :: RawFilePath -> IO (Vector Ignore)
+        readIgnore f = handle (\(_ :: IOException) -> return V.empty)
+            (V.map ignore . V.fromList . B.lines <$> B.readFile (B.unpack f))
+
+        dotfiles :: Vector ByteString
+        dotfiles = [".gitignore", ".hgignore"]
 {-# INLINABLE readIgnores #-}

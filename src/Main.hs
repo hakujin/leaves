@@ -1,9 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, OverloadedLists #-}
 
 import Control.Applicative ((<$>))
 import Control.Arrow (second)
 import Control.Concurrent.Async (mapConcurrently)
 import Control.Monad.ST (runST)
+import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import Data.Vector (Vector)
 import qualified Data.Vector as V
@@ -15,15 +16,15 @@ import Ignore (ignore, ignored, readIgnores)
 import Types (File, Ignore, Tree(..))
 
 main :: IO ()
-main = print =<< tree i r
+main = print =<< tree i f
   where
-      i = map ignore [".", "..", ".git", ".gitignore", ".hg", ".hgignore"]
-      r = (DirType 4, ".")
+      i = V.map ignore [".", "..", ".git", ".gitignore", ".hg", ".hgignore"]
+      f = (DirType 4, ".")
 
-tree :: [Ignore] -> File -> IO (Tree RawFilePath)
+tree :: Vector Ignore -> File -> IO (Tree RawFilePath)
 tree i (DirType 4, f) = do
     c <- V.fromList <$> getDirectoryContents f
-    i' <- (++) i <$> readIgnores [".gitignore", ".hgignore"] f
+    i' <- (<>) i <$> readIgnores f
     Folder (takeFileName f) <$>
         (mapConcurrently (tree i') . path f . sort . V.filter (ignored i')) c
 tree _ (DirType _, f) = return (File $ takeFileName f)
