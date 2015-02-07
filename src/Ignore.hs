@@ -3,19 +3,20 @@
 module Ignore (
     ignore,
     ignored,
-    readIgnores
+    getIgnores
 ) where
 
 import Control.Applicative ((<$>))
 import Control.Exception (handle, IOException)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
-import Data.Foldable (asum)
-import Data.Vector (Vector)
-import qualified Data.Vector as V
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as S
+import Data.Foldable (all)
 import System.Posix.FilePath ((</>), RawFilePath)
 import Text.Regex.TDFA ((=~))
 import Types (File, Ignore(..))
+import Prelude hiding (all)
 
 ignore :: RawFilePath -> Ignore
 ignore bs =
@@ -35,21 +36,21 @@ ignore bs =
                 regexChars = "\\+()^$.{}]|"
 {-# INLINABLE ignore #-}
 
-ignored :: Vector Ignore -> File -> Bool
-ignored v (_, f) = V.all go v
+ignored :: HashSet Ignore -> File -> Bool
+ignored v (_, f) = all match v
     where
-        go :: Ignore -> Bool
-        go (Regex r) = not (f =~ r)
-        go (Literal l) = f /= l
+        match :: Ignore -> Bool
+        match (Regex r) = not (f =~ r)
+        match (Literal l) = f /= l
 {-# INLINABLE ignored #-}
 
-readIgnores :: RawFilePath -> IO (Vector Ignore)
-readIgnores path = asum <$> V.mapM (readIgnore . (path </>)) dotfiles
+getIgnores :: RawFilePath -> IO (HashSet Ignore)
+getIgnores p = S.fromList . concat <$> mapM (readIgnore . (p </>)) source
     where
-        readIgnore :: RawFilePath -> IO (Vector Ignore)
-        readIgnore f = handle (\(_ :: IOException) -> return V.empty)
-            (V.map ignore . V.fromList . B.lines <$> B.readFile (B.unpack f))
+        readIgnore :: RawFilePath -> IO [Ignore]
+        readIgnore f = handle (\(_ :: IOException) -> return [])
+                              (map ignore . B.lines <$> B.readFile (B.unpack f))
 
-        dotfiles :: Vector ByteString
-        dotfiles = [".gitignore", ".hgignore"]
-{-# INLINABLE readIgnores #-}
+        source :: [ByteString]
+        source = [".gitignore", ".hgignore"]
+{-# INLINABLE getIgnores #-}
