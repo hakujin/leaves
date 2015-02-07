@@ -1,6 +1,6 @@
 name:                leaves
 version:             0.0.1
-synopsis:            Displays project file structure
+synopsis:            Tree that displays file structure you actually care about
 homepage:            https://github.com/hakujin/leaves
 license:             BSD3
 license-file:        LICENSE
