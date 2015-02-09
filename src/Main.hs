@@ -50,9 +50,9 @@ render h = hPutBuilder h . mconcat . draw
         draw (File (_, n)) = [byteString n <> byteString "\n"]
 
         drawSubTrees :: [Tree] -> [Builder]
+        drawSubTrees [] = []
         drawSubTrees [v] = shift s1 (byteString "    ") (draw v)
         drawSubTrees (v:vs)= shift s2 s3 (draw v) <> drawSubTrees vs
-        drawSubTrees _ = []
 
         shift :: Builder -> Builder -> [Builder] -> [Builder]
         shift first other = zipWith (<>) (first : repeat other)
