@@ -20,6 +20,7 @@ executable leaves
                        hashable,
                        posix-paths,
                        regex-tdfa,
+                       text,
                        vector,
                        vector-algorithms,
                        unordered-containers
