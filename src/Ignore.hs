@@ -18,6 +18,7 @@ import Text.Regex.TDFA ((=~))
 import Types (Scope(..), Target(..), Ignore(..))
 import Prelude hiding (all)
 
+--------------------------------------------------------------------------------
 ignore :: RawFilePath -> RawFilePath -> Ignore
 ignore p f =
     let (t, f') = target f
@@ -45,6 +46,7 @@ ignore p f =
             where
                 regexChars = "\\+()^$.{}]|"
 
+--------------------------------------------------------------------------------
 ignored :: HashSet Ignore -> (DirType, (RawFilePath, RawFilePath)) -> Bool
 ignored v (d, (p, n)) = all (match d) v
     where
@@ -60,6 +62,7 @@ ignored v (d, (p, n)) = all (match d) v
         match _ (Regex Relative All r) = not (n =~ r)
         match _ (Regex Absolute All r) = not (p =~ r)
 
+--------------------------------------------------------------------------------
 getIgnores :: RawFilePath
            -> [(DirType, (RawFilePath, RawFilePath))]
            -> IO (HashSet Ignore)
@@ -82,4 +85,3 @@ getIgnores p = foldrM step S.empty
 
         is :: [ByteString]
         is = [".gitignore", ".hgignore"]
-

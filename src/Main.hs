@@ -16,6 +16,7 @@ import System.Posix.FilePath ((</>), RawFilePath)
 import Ignore (ignored, getIgnores)
 import Types (Ignore(..), Scope(..), Target(..), Tree(..))
 
+--------------------------------------------------------------------------------
 main :: IO ()
 main = do
     hSetBinaryMode stdout True
@@ -25,6 +26,7 @@ main = do
         i = S.fromList $ map (Literal Relative Directory) [".git", ".hg"]
         d = (DirType 4, (".", "."))
 
+--------------------------------------------------------------------------------
 tree :: HashSet Ignore -> (DirType, (RawFilePath, RawFilePath)) -> IO Tree
 tree i (DirType 4, f@(p, _)) = do
     c <- map (path p) . drop 2 <$> getDirectoryContents p
@@ -32,15 +34,18 @@ tree i (DirType 4, f@(p, _)) = do
     Folder f <$> (mapConcurrently (tree i') . sort . filter (ignored i')) c
 tree _ (DirType _, f) = return (File f)
 
+--------------------------------------------------------------------------------
 sort :: [(DirType, (RawFilePath, RawFilePath))]
      -> [(DirType, (RawFilePath, RawFilePath))]
 sort = sortBy (comparing (snd . snd))
 
+--------------------------------------------------------------------------------
 path :: RawFilePath
      -> (DirType, RawFilePath)
      -> (DirType, (RawFilePath, RawFilePath))
 path p (d, f) = (d, (p </> f, f))
 
+--------------------------------------------------------------------------------
 render :: Handle -> Tree -> IO ()
 render h = hPutBuilder h . mconcat . draw
     where
@@ -57,6 +62,7 @@ render h = hPutBuilder h . mconcat . draw
         shift :: Builder -> Builder -> [Builder] -> [Builder]
         shift first other = zipWith (<>) (first : repeat other)
 
+--------------------------------------------------------------------------------
 s1,s2,s3 :: Builder
 s1 = byteString (encodeUtf8 "└── ")
 s2 = byteString (encodeUtf8 "├── ")
