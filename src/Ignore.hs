@@ -11,7 +11,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as S
-import Data.Foldable (all, foldrM, Foldable)
+import Data.Foldable (all, foldrM)
 import System.Posix.FilePath ((</>), RawFilePath)
 import System.Posix.Directory.Foreign (DirType(..))
 import Text.Regex.TDFA ((=~))
@@ -44,7 +44,6 @@ ignore p f =
                  | otherwise = B.singleton c
             where
                 regexChars = "\\+()^$.{}]|"
-{-# INLINABLE ignore #-}
 
 ignored :: HashSet Ignore -> (DirType, (RawFilePath, RawFilePath)) -> Bool
 ignored v (d, (p, n)) = all (match d) v
@@ -60,11 +59,9 @@ ignored v (d, (p, n)) = all (match d) v
         match _ (Regex _ Directory _) = True
         match _ (Regex Relative All r) = not (n =~ r)
         match _ (Regex Absolute All r) = not (p =~ r)
-{-# INLINABLE ignored #-}
 
-getIgnores :: Foldable t
-           => RawFilePath
-           -> t (DirType, (RawFilePath, RawFilePath))
+getIgnores :: RawFilePath
+           -> [(DirType, (RawFilePath, RawFilePath))]
            -> IO (HashSet Ignore)
 getIgnores p = foldrM step S.empty
     where
@@ -85,5 +82,4 @@ getIgnores p = foldrM step S.empty
 
         is :: [ByteString]
         is = [".gitignore", ".hgignore"]
-{-# INLINABLE getIgnores #-}
 

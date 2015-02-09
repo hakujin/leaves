@@ -8,7 +8,6 @@ module Types (
 ) where
 
 import Data.ByteString (ByteString)
-import Data.Vector (Vector)
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
 import System.Posix.FilePath (RawFilePath)
@@ -32,5 +31,5 @@ instance Hashable Ignore
 
 --------------------------------------------------------------------------------
 data Tree = File (RawFilePath, RawFilePath)
-          | Folder (RawFilePath, RawFilePath) (Vector Tree)
+          | Folder (RawFilePath, RawFilePath) [Tree]
           deriving (Show, Eq, Ord)
