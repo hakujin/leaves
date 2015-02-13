@@ -1,7 +1,10 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, GeneralizedNewtypeDeriving #-}
 
 module Types (
     Ignore(..),
+    Name(..),
+    Path(..),
+    FileInfo,
     Scope(..),
     Target(..),
     Tree(..)
@@ -10,7 +13,17 @@ module Types (
 import Data.ByteString (ByteString)
 import Data.Hashable (Hashable)
 import GHC.Generics (Generic)
+import System.Posix.Directory.Foreign (DirType(..))
 import System.Posix.FilePath (RawFilePath)
+
+--------------------------------------------------------------------------------
+newtype Path = Path RawFilePath deriving (Show, Eq, Ord)
+
+--------------------------------------------------------------------------------
+newtype Name = Name RawFilePath deriving (Show, Eq, Ord)
+
+--------------------------------------------------------------------------------
+type FileInfo = (DirType, (Path, Name))
 
 --------------------------------------------------------------------------------
 data Target = All | Directory deriving (Show, Eq, Generic)
@@ -30,6 +43,6 @@ data Ignore = Literal Scope Target ByteString
 instance Hashable Ignore
 
 --------------------------------------------------------------------------------
-data Tree = File (RawFilePath, RawFilePath)
-          | Folder (RawFilePath, RawFilePath) [Tree]
+data Tree = File (Path, Name)
+          | Folder (Path, Name) [Tree]
           deriving (Show, Eq, Ord)
