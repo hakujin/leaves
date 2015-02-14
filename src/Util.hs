@@ -1,8 +1,9 @@
 module Util (
-    (</>)
+    (</>),
+    P.combine
 ) where
 
-import qualified System.Posix.FilePath as P ((</>))
+import qualified System.Posix.FilePath as P ((</>), combine)
 
 import Types (Name(..), Path(..))
 

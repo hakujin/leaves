@@ -1,12 +1,14 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module Ignore (
     ignore,
     allowed,
-    getIgnores
+    getIgnores,
+    readIgnore
 ) where
 
 import Control.Applicative ((<$>))
+import Control.Exception (handle, IOException)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.HashSet (HashSet)
@@ -18,9 +20,10 @@ import Text.Regex.TDFA ((=~))
 import Prelude hiding (all)
 
 import Types (Ignore(..), FileInfo, Name(..), Path(..), Scope(..), Target(..))
-import Util ((</>))
+import Util ((</>), combine)
 
---------------------------------------------------------------------------------
+-- | Classify a pattern from a version control .ignore file for efficient
+-- matching.
 ignore :: Path -> ByteString -> Ignore
 ignore (Path p) f =
     let (t, f') = target f
@@ -34,7 +37,7 @@ ignore (Path p) f =
 
     scope :: ByteString -> (Scope, ByteString)
     scope b = if '/' `B.elem` B.init b
-                    then (Absolute, p <> "/" <> b)
+                    then (Absolute, p `combine` b)
                     else (Relative, b)
 
     go :: Char -> ByteString
@@ -49,7 +52,7 @@ ignore (Path p) f =
       where
         regexChars = "\\+()^$.{}]|"
 
---------------------------------------------------------------------------------
+-- | Given the 'Ignore' Set, is this File/Folder allowed?
 allowed :: HashSet Ignore -> FileInfo -> Bool
 allowed v (d, ((Path p), (Name n))) = all (match d) v
   where
@@ -65,22 +68,24 @@ allowed v (d, ((Path p), (Name n))) = all (match d) v
     match _ (Regex Relative All r) = not (n =~ r)
     match _ (Regex Absolute All r) = not (p =~ r)
 
---------------------------------------------------------------------------------
+-- | Read and classify all 'Ignore' patterns from common version control
+-- .ignore files in the current 'Path'.
 getIgnores :: Path -> [FileInfo] -> IO (HashSet Ignore)
 getIgnores p = foldrM step S.empty
   where
     step :: FileInfo -> HashSet Ignore -> IO (HashSet Ignore)
     step (DirType 8, (_, n)) a
-        | n `elem` dotIgnore = (`S.union` a) <$> readIgnore (p </> n)
+        | n `elem` dotIgnore = ((<>) a) <$> readIgnore (p </> n)
     step _ a = return a
 
     dotIgnore :: [Name]
     dotIgnore = map Name [".gitignore", ".hgignore"]
 
---------------------------------------------------------------------------------
+-- | Read and classify all 'Ignore' patterns from the specified 'Path'.
 readIgnore :: Path -> IO (HashSet Ignore)
-readIgnore path@(Path p) = S.fromList .
-    map (ignore path) . filter whitespace . B.lines <$> B.readFile (B.unpack p)
+readIgnore path@(Path p) = handle (\(_ :: IOException) -> return S.empty) $ do
+    f <- B.readFile (B.unpack p)
+    return . S.fromList . map (ignore path) . filter whitespace . B.lines $ f
   where
     whitespace :: ByteString -> Bool
     whitespace b = not (B.null b) && B.head b /= '#'
