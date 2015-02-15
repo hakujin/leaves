@@ -46,7 +46,7 @@ main = do
 tree :: HashSet Ignore -> FileInfo -> IO Tree
 tree i (DirType 4, fileInfo@(path@(Path p), _)) = do
     c <- map info . drop 2 <$> getDirectoryContents p -- drop ".", ".."
-    i' <- ((<>) i) <$> getIgnores path c
+    i' <- (i <>) <$> getIgnores path c
     Folder fileInfo . filter nonEmpty <$>
         (mapConcurrently (tree i') . sort . filter (allowed i')) c
   where
@@ -71,8 +71,8 @@ render h = hPutBuilder h . mconcat . draw
     build b = byteString b <> byteString "\n"
 
     draw :: Tree -> [Builder]
-    draw (Folder (_, (Name n)) t) = build n : drawSubTrees t
-    draw (File (_, (Name n))) = [build n]
+    draw (Folder (_, Name n) t) = build n : drawSubTrees t
+    draw (File (_, Name n)) = [build n]
 
     drawSubTrees :: [Tree] -> [Builder]
     drawSubTrees [] = []

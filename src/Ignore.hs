@@ -54,7 +54,7 @@ ignore (Path p) f =
 
 -- | Given the 'Ignore' Set, is this File/Folder allowed?
 allowed :: HashSet Ignore -> FileInfo -> Bool
-allowed v (d, ((Path p), (Name n))) = all (match d) v
+allowed v (d, (Path p, Name n)) = all (match d) v
   where
     match :: DirType -> Ignore -> Bool
     match (DirType 4) (Literal Relative Directory l) = n /= l
@@ -74,18 +74,17 @@ getIgnores :: Path -> [FileInfo] -> IO (HashSet Ignore)
 getIgnores p = foldrM step S.empty
   where
     step :: FileInfo -> HashSet Ignore -> IO (HashSet Ignore)
-    step (DirType 8, (_, n)) a
-        | n `elem` dotIgnore = ((<>) a) <$> readIgnore (p </> n)
+    step (DirType 8, (_, n)) a | n `elem` ns = (a <>) <$> readIgnore (p </> n)
     step _ a = return a
 
-    dotIgnore :: [Name]
-    dotIgnore = map Name [".gitignore", ".hgignore"]
+    ns :: [Name]
+    ns = map Name [".gitignore", ".hgignore"]
 
 -- | Read and classify all 'Ignore' patterns from the specified 'Path'.
 readIgnore :: Path -> IO (HashSet Ignore)
-readIgnore path@(Path p) = handle (\(_ :: IOException) -> return S.empty) $ do
-    f <- B.readFile (B.unpack p)
-    return . S.fromList . map (ignore path) . filter whitespace . B.lines $ f
+readIgnore path@(Path p) = handle (\(_ :: IOException) -> return S.empty) $
+    S.fromList . map (ignore path) . filter whitespace . B.lines <$>
+        B.readFile (B.unpack p)
   where
     whitespace :: ByteString -> Bool
     whitespace b = not (B.null b) && B.head b /= '#'
