@@ -46,7 +46,7 @@ main = do
 tree :: HashSet Ignore -> FileInfo -> IO Tree
 tree i (DirType 4, fileInfo@(path@(Path p), _)) = do
     c <- map info . drop 2 <$> getDirectoryContents p -- drop ".", ".."
-    i' <- (i <>) <$> getIgnores path c
+    i' <- (<> i) <$> getIgnores path c
     Folder fileInfo . filter nonEmpty <$>
         (mapConcurrently (tree i') . sort . filter (allowed i')) c
   where
@@ -61,7 +61,7 @@ tree i (DirType 4, fileInfo@(path@(Path p), _)) = do
     nonEmpty (Folder _ []) = False
     nonEmpty _ = True
 
-tree _ (DirType _, f) = return (File f)
+tree _ (_, f) = return (File f)
 
 -- | Print the tree to the 'Handle'.
 render :: Handle -> Tree -> IO ()

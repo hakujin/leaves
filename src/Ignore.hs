@@ -37,8 +37,8 @@ ignore (Path p) f =
 
     scope :: ByteString -> (Scope, ByteString)
     scope b = if '/' `B.elem` B.init b
-                    then (Absolute, p `combine` b)
-                    else (Relative, b)
+        then (Absolute, p `combine` b)
+        else (Relative, b)
 
     go :: Char -> ByteString
     go '*' = ".*"
@@ -74,8 +74,8 @@ getIgnores :: Path -> [FileInfo] -> IO (HashSet Ignore)
 getIgnores p = foldrM step S.empty
   where
     step :: FileInfo -> HashSet Ignore -> IO (HashSet Ignore)
-    step (DirType 8, (_, n)) a | n `elem` ns = (a <>) <$> readIgnore (p </> n)
-    step _ a = return a
+    step (DirType 8, (_, n)) i | n `elem` ns = (<> i) <$> readIgnore (p </> n)
+    step _ i = return i
 
     ns :: [Name]
     ns = map Name [".gitignore", ".hgignore"]
