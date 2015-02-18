@@ -14,7 +14,7 @@ import qualified Data.ByteString.Char8 as B
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as S
 import Data.Foldable (all, foldrM)
-import Data.Monoid ((<>))
+import Data.Monoid ((<>), mempty)
 import System.Posix.Directory.Foreign (DirType(..))
 import Text.Regex.TDFA ((=~))
 import Prelude hiding (all)
@@ -36,7 +36,7 @@ ignore (Path p) f =
     target b = if B.last b == '/' then (Directory, B.init b) else (All, b)
 
     scope :: ByteString -> (Scope, ByteString)
-    scope b = if '/' `B.elem` B.init b
+    scope b = if '/' `B.elem` b
         then (Absolute, p `combine` b)
         else (Relative, b)
 
@@ -71,7 +71,7 @@ allowed v (d, (Path p, Name n)) = all (match d) v
 -- | Read and classify all 'Ignore' patterns from common version control
 -- .ignore files in the current 'Path'.
 getIgnores :: Path -> [FileInfo] -> IO (HashSet Ignore)
-getIgnores p = foldrM step S.empty
+getIgnores p = foldrM step mempty
   where
     step :: FileInfo -> HashSet Ignore -> IO (HashSet Ignore)
     step (DirType 8, (_, n)) i | n `elem` ns = (<> i) <$> readIgnore (p </> n)
@@ -82,7 +82,7 @@ getIgnores p = foldrM step S.empty
 
 -- | Read and classify all 'Ignore' patterns from the specified 'Path'.
 readIgnore :: Path -> IO (HashSet Ignore)
-readIgnore path@(Path p) = handle (\(_ :: IOException) -> return S.empty) $
+readIgnore path@(Path p) = handle (\(_ :: IOException) -> return mempty) $
     S.fromList . map (ignore path) . filter whitespace . B.lines <$>
         B.readFile (B.unpack p)
   where

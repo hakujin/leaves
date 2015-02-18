@@ -38,7 +38,7 @@ main = do
     render stdout =<< tree (l <> g) f
   where
     d = [".gitignore", ".hgignore"]
-    l = S.fromList $ map (Literal Relative Directory) [".git", ".hg"] ++
+    l = S.fromList $ map (Literal Relative Directory) [".git", ".hg"] <>
                      map (Literal Relative All) d
     f = (DirType 4, (Path ".", Name "."))
 
