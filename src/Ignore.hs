@@ -21,7 +21,7 @@ import Text.Regex.TDFA ((=~))
 import Prelude hiding (all)
 
 import Types (Ignore(..), FileInfo, Name(..), Path(..), Scope(..), Target(..))
-import Util ((</>), combine)
+import Util (combine)
 
 -- | Classify a pattern from a version control .ignore file for efficient
 -- matching.
@@ -80,17 +80,17 @@ getIgnores :: Path -> [FileInfo] -> IO (HashSet Ignore)
 getIgnores p = foldrM step mempty
   where
     step :: FileInfo -> HashSet Ignore -> IO (HashSet Ignore)
-    step (DirType 8, (_, n)) i | n `elem` ns = (<> i) <$> readIgnore (p </> n)
+    step (DirType 8, (_, n)) i | n `elem` ns = (<> i) <$> readIgnore p n
     step _ i = return i
 
     ns :: [Name]
     ns = map Name [".gitignore", ".hgignore"]
 
 -- | Read and classify all 'Ignore' patterns from the specified 'Path'.
-readIgnore :: Path -> IO (HashSet Ignore)
-readIgnore path@(Path p) = handle (\(_ :: IOException) -> return mempty) $
+readIgnore :: Path -> Name -> IO (HashSet Ignore)
+readIgnore path@(Path p) (Name n) = handle (\(_ :: IOException) -> return mempty) $
     S.fromList . map (ignore path) . filter whitespace . B.lines <$>
-        B.readFile (B.unpack p)
+        (B.readFile . B.unpack . combine p) n
   where
     whitespace :: ByteString -> Bool
     whitespace b = not (B.null b) && B.head b /= '#'

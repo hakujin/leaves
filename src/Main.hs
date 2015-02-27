@@ -25,14 +25,14 @@ import Types (Ignore(..),
               Scope(..),
               Target(..),
               Tree(..))
-import Util ((</>), combine)
+import Util ((</>))
 
 -- | Print the file structure of the current project, ignoring both empty
 -- directories and patterns specified in version control .ignore files.
 main :: IO ()
 main = do
     h <- pack <$> getHomeDirectory
-    g <- fold <$> mapConcurrently readIgnore (map (Path . combine h) d)
+    g <- fold <$> mapConcurrently (readIgnore (Path h)) (map Name d)
     hSetBinaryMode stdout True
     hSetBuffering stdout (BlockBuffering Nothing)
     render stdout =<< tree (l <> g) f
@@ -63,7 +63,7 @@ tree i (DirType 4, fileInfo@(path@(Path p), _)) = do
 
 tree _ (_, f) = return (File f)
 
--- | Print the tree to the 'Handle'.
+-- | Print the 'Tree' to the 'Handle'.
 render :: Handle -> Tree -> IO ()
 render h = hPutBuilder h . mconcat . draw
   where
