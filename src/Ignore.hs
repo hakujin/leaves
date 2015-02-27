@@ -9,7 +9,7 @@ module Ignore (
 
 import Control.Applicative ((<$>), (<*>))
 import Control.Exception (handle, IOException)
-import Control.Monad.State (State, runState, put, get)
+import Control.Monad.State (State, get, modify, runState)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.HashSet (HashSet)
@@ -36,15 +36,15 @@ ignore (Path p) f =
     target = do
         b <- get
         if B.last b == '/'
-           then put (B.init b) >> return Directory
-           else put b >> return All
+           then modify B.init >> return Directory
+           else return All
 
     scope :: State ByteString Scope
     scope = do
         b <- get
         if '/' `B.elem` b
-           then put (p `combine` b) >> return Absolute
-           else put b >> return Relative
+           then modify (combine p) >> return Absolute
+           else return Relative
 
     go :: Char -> ByteString
     go '*' = ".*"
