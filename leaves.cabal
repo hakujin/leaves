@@ -20,6 +20,7 @@ executable leaves
                        bytestring,
                        directory,
                        hashable,
+                       mtl,
                        posix-paths,
                        regex-tdfa,
                        text,

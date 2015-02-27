@@ -7,8 +7,9 @@ module Ignore (
     readIgnore
 ) where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
 import Control.Exception (handle, IOException)
+import Control.Monad.State (State, runState, put, get)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as B
 import Data.HashSet (HashSet)
@@ -26,19 +27,24 @@ import Util ((</>), combine)
 -- matching.
 ignore :: Path -> ByteString -> Ignore
 ignore (Path p) f =
-    let (t, f') = target f
-        (s, f'') = scope f'
-    in if '*' `B.elem` f''  || '?' `B.elem` f''
-        then Regex s t (('^' `B.cons` B.concatMap go f'') `B.snoc` '$')
-        else Literal s t f''
+    let ((t, s), f') = runState ((,) <$> target <*> scope) f
+    in if '*' `B.elem` f'  || '?' `B.elem` f'
+          then Regex s t (('^' `B.cons` B.concatMap go f') `B.snoc` '$')
+          else Literal s t f'
   where
-    target :: ByteString -> (Target, ByteString)
-    target b = if B.last b == '/' then (Directory, B.init b) else (All, b)
+    target :: State ByteString Target
+    target = do
+        b <- get
+        if B.last b == '/'
+           then put (B.init b) >> return Directory
+           else put b >> return All
 
-    scope :: ByteString -> (Scope, ByteString)
-    scope b = if '/' `B.elem` b
-        then (Absolute, p `combine` b)
-        else (Relative, b)
+    scope :: State ByteString Scope
+    scope = do
+        b <- get
+        if '/' `B.elem` b
+           then put (p `combine` b) >> return Absolute
+           else put b >> return Relative
 
     go :: Char -> ByteString
     go '*' = ".*"
@@ -47,7 +53,7 @@ ignore (Path p) f =
 
     escape :: Char -> ByteString
     escape c
-        | c  `B.elem` regexChars = B.pack ['\\', c]
+        | c `B.elem` regexChars = B.pack ['\\', c]
         | otherwise = B.singleton c
       where
         regexChars = "\\+()^$.{}]|"
