@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module Ignore (
-    ignore,
     allowed,
     getIgnores,
     readIgnore
@@ -15,9 +14,11 @@ import qualified Data.ByteString.Char8 as B
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as S
 import Data.Foldable (all, foldrM)
+import Data.Maybe (mapMaybe)
 import Data.Monoid ((<>), mempty)
 import System.Posix.Directory.Foreign (DirType(..))
-import Text.Regex.TDFA ((=~))
+import Text.Regex.TDFA.ByteString (Regex, compile, execute)
+import Text.Regex.TDFA.Common (CompOption(..), ExecOption(..))
 import Prelude hiding (all)
 
 import Types (Ignore(..), FileInfo, Name(..), Path(..), Scope(..), Target(..))
@@ -25,12 +26,15 @@ import Util (combine)
 
 -- | Classify a pattern from a version control .ignore file for efficient
 -- matching.
-ignore :: Path -> ByteString -> Ignore
+ignore :: Path -> ByteString -> Maybe Ignore
 ignore (Path p) f =
     let ((t, s), f') = runState ((,) <$> target <*> scope) f
-    in if '*' `B.elem` f'  || '?' `B.elem` f'
-          then Regex s t (('^' `B.cons` B.concatMap go f') `B.snoc` '$')
-          else Literal s t f'
+     in if '*' `B.elem` f'  || '?' `B.elem` f'
+           then let r = ('^' `B.cons` B.concatMap go f') `B.snoc` '$'
+                 in case compile compOption execOption r of
+                         Left _ -> Nothing
+                         Right regex -> Just (RegEx s t (r, regex))
+          else Just (Literal s t f')
   where
     target :: State ByteString Target
     target = do
@@ -58,6 +62,14 @@ ignore (Path p) f =
       where
         regexChars = "\\+()^$.{}]|"
 
+    compOption = CompOption { caseSensitive = True
+                            , multiline = False
+                            , rightAssoc = True
+                            , newSyntax = False
+                            , lastStarGreedy = True }
+
+    execOption = ExecOption { captureGroups = False }
+
 -- | Given the 'Ignore' Set, is this File/Folder allowed?
 allowed :: HashSet Ignore -> FileInfo -> Bool
 allowed v (d, (Path p, Name n)) = all (match d) v
@@ -68,11 +80,18 @@ allowed v (d, (Path p, Name n)) = all (match d) v
     match _ (Literal _ Directory _) = True
     match _ (Literal Relative All l) = n /= l
     match _ (Literal Absolute All l) = p /= l
-    match (DirType 4) (Regex Relative Directory r) = not (n =~ r)
-    match (DirType 4) (Regex Absolute Directory r) = not (p =~ r)
-    match _ (Regex _ Directory _) = True
-    match _ (Regex Relative All r) = not (n =~ r)
-    match _ (Regex Absolute All r) = not (p =~ r)
+    match (DirType 4) (RegEx Relative Directory (_, r)) = not (n =~ r)
+    match (DirType 4) (RegEx Absolute Directory (_, r)) = not (p =~ r)
+    match _ (RegEx _ Directory _) = True
+    match _ (RegEx Relative All (_, r)) = not (n =~ r)
+    match _ (RegEx Absolute All (_, r)) = not (p =~ r)
+
+    (=~) :: ByteString -> Regex -> Bool
+    (=~) b r = case execute r b of
+                    Left _ -> False
+                    Right ma -> case ma of
+                                     Nothing -> False
+                                     Just _ -> True
 
 -- | Read and classify all 'Ignore' patterns from common version control
 -- .ignore files in the current 'Path'.
@@ -88,9 +107,10 @@ getIgnores p = foldrM step mempty
 
 -- | Read and classify all 'Ignore' patterns from the specified 'Path'.
 readIgnore :: Path -> Name -> IO (HashSet Ignore)
-readIgnore path@(Path p) (Name n) = handle (\(_ :: IOException) -> return mempty) $
-    S.fromList . map (ignore path) . filter whitespace . B.lines <$>
-        (B.readFile . B.unpack . combine p) n
+readIgnore path@(Path p) (Name n) =
+    handle (\(_ :: IOException) -> return mempty) $
+        S.fromList . mapMaybe (ignore path) . filter whitespace . B.lines <$>
+            (B.readFile . B.unpack . combine p) n
   where
     whitespace :: ByteString -> Bool
     whitespace b = not (B.null b) && B.head b /= '#'

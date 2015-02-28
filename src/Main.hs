@@ -31,8 +31,8 @@ import Util ((</>))
 -- directories and patterns specified in version control .ignore files.
 main :: IO ()
 main = do
-    h <- pack <$> getHomeDirectory
-    g <- fold <$> mapConcurrently (readIgnore (Path h)) (map Name d)
+    h <- Path . pack <$> getHomeDirectory
+    g <- fold <$> mapConcurrently (readIgnore h) (map Name d)
     hSetBinaryMode stdout True
     hSetBuffering stdout (BlockBuffering Nothing)
     render stdout =<< tree (l <> g) f
