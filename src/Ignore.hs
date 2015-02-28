@@ -32,8 +32,8 @@ ignore (Path p) f =
      in if '*' `B.elem` f'  || '?' `B.elem` f'
            then let r = ('^' `B.cons` B.concatMap go f') `B.snoc` '$'
                  in case compile compOption execOption r of
-                         Left _ -> Nothing
                          Right regex -> Just (RegEx s t (r, regex))
+                         _           -> Nothing
           else Just (Literal s t f')
   where
     target :: State ByteString Target
@@ -88,10 +88,8 @@ allowed v (d, (Path p, Name n)) = all (match d) v
 
     (=~) :: ByteString -> Regex -> Bool
     (=~) b r = case execute r b of
-                    Left _ -> False
-                    Right ma -> case ma of
-                                     Nothing -> False
-                                     Just _ -> True
+                    Right (Just _) -> True
+                    _              -> False
 
 -- | Read and classify all 'Ignore' patterns from common version control
 -- .ignore files in the current 'Path'.
