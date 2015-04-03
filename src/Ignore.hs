@@ -1,12 +1,11 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 
 module Ignore (
-    allowed,
+    isAllowed,
     getIgnores,
     readIgnore
 ) where
 
-import Control.Applicative ((<$>), (<*>))
 import Control.Exception (handle, IOException)
 import Control.Monad.State (State, get, modify, runState)
 import Data.ByteString (ByteString)
@@ -15,7 +14,7 @@ import Data.HashSet (HashSet)
 import qualified Data.HashSet as S
 import Data.Foldable (all, foldrM)
 import Data.Maybe (mapMaybe)
-import Data.Monoid ((<>), mempty)
+import Data.Monoid ((<>))
 import System.Posix.Directory.Foreign (DirType(..))
 import Text.Regex.TDFA.ByteString (Regex, compile, execute)
 import Text.Regex.TDFA.Common (CompOption(..), ExecOption(..))
@@ -34,7 +33,7 @@ ignore (Path p) f =
                  in case compile compOption execOption r of
                          Right regex -> Just (RegEx s t (r, regex))
                          _           -> Nothing
-          else Just (Literal s t f')
+           else Just (Literal s t f')
   where
     target :: State ByteString Target
     target = do
@@ -71,8 +70,8 @@ ignore (Path p) f =
     execOption = ExecOption { captureGroups = False }
 
 -- | Given the 'Ignore' Set, is this File/Folder allowed?
-allowed :: HashSet Ignore -> FileInfo -> Bool
-allowed v (d, (Path p, Name n)) = all (match d) v
+isAllowed :: HashSet Ignore -> FileInfo -> Bool
+isAllowed v (d, (Path p, Name n)) = all (match d) v
   where
     match :: DirType -> Ignore -> Bool
     match (DirType 4) (Literal Relative Directory l) = n /= l
@@ -107,8 +106,8 @@ getIgnores p = foldrM step mempty
 readIgnore :: Path -> Name -> IO (HashSet Ignore)
 readIgnore path@(Path p) (Name n) =
     handle (\(_ :: IOException) -> return mempty) $
-        S.fromList . mapMaybe (ignore path) . filter whitespace . B.lines <$>
+        S.fromList . mapMaybe (ignore path) . filter isPattern . B.lines <$>
             (B.readFile . B.unpack . combine p) n
   where
-    whitespace :: ByteString -> Bool
-    whitespace b = not (B.null b) && B.head b /= '#'
+    isPattern :: ByteString -> Bool
+    isPattern b = not (B.null b) && B.head b /= '#'

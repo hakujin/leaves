@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Control.Applicative ((<$>))
 import Control.Concurrent.Async (mapConcurrently)
 import Data.ByteString.Char8 (pack)
 import Data.ByteString.Builder (Builder, byteString, hPutBuilder)
@@ -8,16 +7,16 @@ import Data.Foldable (fold)
 import Data.HashSet (HashSet)
 import qualified Data.HashSet as S
 import Data.List (sortBy)
-import Data.Monoid ((<>), mconcat)
+import Data.Monoid ((<>))
 import Data.Ord (comparing)
 import Data.Text.Encoding (encodeUtf8)
 import System.Directory (getHomeDirectory)
-import System.IO (Handle, stdout, hSetBinaryMode, hSetBuffering, BufferMode(..))
+import System.IO (stdout, hSetBinaryMode, hSetBuffering, BufferMode(..))
 import System.Posix.Directory.Foreign (DirType(..))
 import System.Posix.Directory.Traversals (getDirectoryContents)
 import System.Posix.FilePath (RawFilePath)
 
-import Ignore (allowed, getIgnores, readIgnore)
+import Ignore (isAllowed, getIgnores, readIgnore)
 import Types (Ignore(..),
               FileInfo,
               Name(..),
@@ -35,7 +34,7 @@ main = do
     g <- fold <$> mapConcurrently (readIgnore h) (map Name d)
     hSetBinaryMode stdout True
     hSetBuffering stdout (BlockBuffering Nothing)
-    render stdout =<< tree (l <> g) f
+    hPutBuilder stdout . render =<< tree (l <> g) f
   where
     d = [".gitignore", ".hgignore"]
     l = S.fromList $ map (Literal Relative Directory) [".git", ".hg"] <>
@@ -48,7 +47,7 @@ tree i (DirType 4, fileInfo@(path@(Path p), _)) = do
     c <- map info . drop 2 <$> getDirectoryContents p -- drop ".", ".."
     i' <- (<> i) <$> getIgnores path c
     Folder fileInfo . filter nonEmpty <$>
-        (mapConcurrently (tree i') . sort . filter (allowed i')) c
+        (mapConcurrently (tree i') . sort . filter (isAllowed i')) c
   where
     sort :: [FileInfo] -> [FileInfo]
     sort = sortBy (comparing (snd . snd))
@@ -63,9 +62,9 @@ tree i (DirType 4, fileInfo@(path@(Path p), _)) = do
 
 tree _ (_, f) = return (File f)
 
--- | Print the 'Tree' to the 'Handle'.
-render :: Handle -> Tree -> IO ()
-render h = hPutBuilder h . mconcat . draw
+-- | Build a visual representation of a 'Tree'.
+render :: Tree -> Builder
+render = mconcat . draw
   where
     build :: RawFilePath -> Builder
     build b = byteString b <> byteString "\n"
