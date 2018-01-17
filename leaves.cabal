@@ -1,11 +1,11 @@
 name:                leaves
-version:             0.0.2
+version:             0.0.3
 synopsis:            Tree that displays file structure you actually care about
 homepage:            https://github.com/hakujin/leaves
 license:             BSD3
 license-file:        LICENSE
-author:              Colin King <richard.colin.king@gmail.com>
-maintainer:          Colin King <richard.colin.king@gmail.com>
+author:              Colin King <colin@hakuj.in>
+maintainer:          Colin King <colin@hakuj.in>
 build-type:          Simple
 cabal-version:       >=1.10
 
@@ -15,16 +15,20 @@ executable leaves
   ghc-options:         -O2 -Wall -Werror -threaded -rtsopts -with-rtsopts=-N
   ghc-prof-options:    -fprof-auto
   default-language:    Haskell2010
-  build-depends:       base >=4.8 && <4.9,
-                       async,
-                       bytestring,
-                       directory,
-                       hashable,
-                       mtl,
-                       posix-paths,
-                       regex-tdfa,
-                       text,
-                       unordered-containers
+  build-depends:       base
+                     , async
+                     , bytestring
+                     , directory
+                     , hashable
+                     , mtl
+                     , posix-paths
+                     , regex-tdfa
+                     , text
+                     , unordered-containers
+  other-modules:       Ignore
+                     , Types
+                     , Util
+
 
 source-repository head
   type:     git
