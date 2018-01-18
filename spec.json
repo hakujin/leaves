@@ -1,0 +1,17 @@
+{
+  "enabled": 1,
+  "hidden": false,
+  "description": "leaves-pr",
+  "nixexprinput": "src",
+  "nixexprpath": "release-pr.nix",
+  "checkinterval": 30,
+  "schedulingshares": 100,
+  "enableemail": false,
+  "emailoverride": "",
+  "keepnr": 10,
+  "inputs":{
+    "src": { "type": "git", "value": "https://github.com/hakujin/leaves.git master", "emailresponsible": false },
+    "nixpkgs": { "type": "git", "value": "https://github.com/NixOS/nixpkgs-channels.git master", "emailresponsible": false },
+    "prsJSON": { "type": "githubpulls", "value": "hakujin leaves", "emailresponsible": false }
+  }
+}
