@@ -1,7 +1,7 @@
 {
   "enabled": 1,
   "hidden": false,
-  "description": "leaves-pr",
+  "description": "PR jobsets",
   "nixexprinput": "src",
   "nixexprpath": "release-pr.nix",
   "checkinterval": 30,
