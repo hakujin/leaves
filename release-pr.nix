@@ -23,7 +23,7 @@ let
         };
         nixpkgs = {
           type = "git";
-          value = "https://github.com/nixos/nixpkgs-channels.git nixos-unstable-small";
+          value = "https://github.com/NixOS/nixpkgs";
           emailresponsible = false;
         };
       };
