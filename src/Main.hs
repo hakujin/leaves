@@ -30,6 +30,7 @@ import Util ((</>))
 -- directories and patterns specified in version control .ignore files.
 main :: IO ()
 main = do
+    WHATABOUTNOW
     h <- Path . pack <$> getHomeDirectory
     g <- fold <$> mapConcurrently (readIgnore h) (map Name d)
     hSetBinaryMode stdout True
