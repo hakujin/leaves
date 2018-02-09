@@ -81,7 +81,7 @@ let
       };
     };
   };
-  leavesPrJobsets = pkgs.lib.listToAttrs (pkgs.lib.mapAttrsToList makeCardanoPR cardanoPrs);
+  leavesPrJobsets = pkgs.lib.listToAttrs (pkgs.lib.mapAttrsToList makeLeavesPR prs);
   mainJobsets = with pkgs.lib; mapAttrs (name: settings: defaultSettings // settings) (rec {
     leaves = mkLeaves "master" nixpkgs-src.rev;
   });
