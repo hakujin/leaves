@@ -1,7 +1,8 @@
-.cabal-sandbox
+.cabal-sandbox/
+.stack-work/
+dist/
 cabal.sandbox.config
 cabal.config
-dist
 .DS_Store
 *.hi
 *.o
